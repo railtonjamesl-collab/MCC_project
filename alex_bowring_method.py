@@ -14,7 +14,7 @@ def rademacher(n):
     outcome = np.random.choice([-1,1], size = n, replace = True)
     return(outcome)
 
-def boundary_erosion(effect_values, threshold_value, dim):
+def boundary_erosion(contrast_values, threshold_value, dim):
     
     """
     Identify boundary point by finding a point satisfying mu(s)>=c and such that 
@@ -25,8 +25,9 @@ def boundary_erosion(effect_values, threshold_value, dim):
     significatn points and the complement of eroded points
     """
     
-    np.asarray(effect_values)
-    significant_points = effect_values > threshold_value
+    #create binary mask then take the A\(A erosion B) as boundary points
+    np.asarray(contrast_values)
+    significant_points = contrast_values > threshold_value
     structure_matrix = ndimage.generate_binary_structure(dim,1)
     erosion = ndimage.binary_erosion(significant_points,
                                      structure = structure_matrix)
@@ -34,29 +35,34 @@ def boundary_erosion(effect_values, threshold_value, dim):
     
     return(boundary, significant_points)
 
-def boundary_linear_interpolation(effect_values, residual_values, threshold_value, dim):
+def boundary_linear_interpolation(contrast_values, residual_values, 
+                                  threshold_value, dim):
     
     """
-    take in 3d numpy array
+    take in residual_values as 4d object (n, x, y, z) where n is the the
+    label number for the subject and x,y,z is coordinate
     
     """
+    
+    #initialise some valeus
     c = threshold_value
-    residual_boundaries = np.array()
-    boundary,significant_points = boundary_erosion(effect_values, 
+    neighbourhood = []
+    #find coordinate for the boundary
+    boundary,significant_points = boundary_erosion(contrast_values, 
                                                    c,  dim)
-    
     boundary_point = np.argwhere(boundary)
-    #it just happened that the binary structure form a cube so here i'll
-    #use it to compute neighbour points for surface connected points
     
-    neighbourhood = np.array()
+    #create a neighbour point to examine (0,1),(1,0),(1,1) etc. using erosion 
+    #structure
     structure_matrix = ndimage.generate_binary_structure(dim,1)
     shape = np.shape(significant_points)
     for x,y,z in np.argwhere(structure_matrix):
         if not (x==1 and y==1 and z ==1):
-            neighbourhood = np.append(neighbourhood, (x-1,y-1,z-1))
+            neighbourhood.append((x-1,y-1,z-1))
     
-    
+
+    #compute and store all pair which generate s* points and save m1, m2 for each pair
+    samples = []
     for point in boundary_point:
         x,y,z = point
         
@@ -67,40 +73,76 @@ def boundary_linear_interpolation(effect_values, residual_values, threshold_valu
             if (0 <= nx < shape[0] and
                 0 <= ny < shape[1] and
                 0 <= nz < shape[2] and
-                ~significant_points[nx,ny,nz]):
+                not significant_points[nx,ny,nz]):
                 
-                s1 = effect_values[x,y,z]
-                s0 = effect_values[nx,ny,nz]
+                s1 = contrast_values[x,y,z]
+                s0 = contrast_values[nx,ny,nz]
                 
                 diff = s1 - s0
                 
                 m1 = (s1 - c)/diff
                 m2 = (c-s0)/diff
                 
-                residual_est = (m1 * residual_values[nx,ny,nz] + 
-                            m2 * residual_values[x,y,z])
-                residual_boundaries = np.append(residual_boundaries, residual_est)
-            return(residual_boundaries)
-                
-            
-            
-def wildt_bootstrap(residual_boundaries, repetition):
+                samples.append((x,y,z),(nx,ny,nz), m1, m2)
+        
+    #here m is just number of recorded s* and n = number of subject
+    m = len(samples)
+    n = np.shape(residual_values)[0]
+
+    
+    #compute standard deviation for each voxel then normalised the residual
+    #assume degree of freedom is 1 here, not sure number of feature yet
+    residual_std = residual_values.std(axis=0)
+    residual_standard = residual_values/residual_std
+    
+    #initialise collection of reisdual at estimated boundary
+    residual_boundary = np.zeros((n,m))
+    
+    #compute residual at s star
+    for i, (s1,s0,m1,m2 ) in enumerate(samples):
+        x, y, z = s1
+        nx, ny, nz = s0
+        
+        residual_1 = residual_standard[:, x, y, z]
+        residual_0 = residual_standard[:, nx, ny, nz]
+        
+        residual_boundary[:,i] = residual_0 * m1 + residual_1 * m2
+        
+    return(residual_boundary)
+        
+def wildt_bootstrap(contrast_values, residual_values, 
+                                  threshold_value, dim, repetition):
     """
-    wild t bootstrap for each location
+    take in 4d residual_boundary
     """
-    epsilon_values = np.array(residual_boundaries)
-    sample_size = len(residual_boundaries)
+    #compute the residual values at s*
+    residual_boundary = boundary_linear_interpolation(contrast_values, 
+                                                      residual_values, 
+                                                      threshold_value, dim)
+    
+    #initialise repetition number for boot strapping
     m = repetition
-    G_est = np.zeros(m)
     
+    #number of subject
+    n = np.shape(residual_boundary)[0]
+    G = np.array([np.shape(residual_boundary)])
     for i in range(m):
-        rademacher_values = rademacher(sample_size)
-        boot_residual = epsilon_values * rademacher_values
-        sigma_est = np.std(boot_residual)
-        residual_est = boot_residual/sigma_est
-        G_est[i] = 1/np.sqrt(sample_size) * sum(residual_est)
+        rademacher(n)
+        
+        
+     
     
-    return(G_est)
+    
+    
+    
+    
+    
+    return()
+        
+        
+        
+        
+    
  
 
 
