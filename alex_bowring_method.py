@@ -6,7 +6,7 @@ Created on Fri Oct 10 11:34:22 2025
 """
 import numpy as np
 from scipy import ndimage
-
+from numpy.linalg import inv
 def rademacher(n):
     """
     generate n sample of 1 or -1 with probability 1/2 for each outcome
@@ -83,7 +83,7 @@ def boundary_linear_interpolation(contrast_values, residual_values,
                 m1 = (s1 - c)/diff
                 m2 = (c-s0)/diff
                 
-                samples.append((x,y,z),(nx,ny,nz), m1, m2)
+                samples.append(((x,y,z),(nx,ny,nz), m1, m2))
         
     #here m is just number of recorded s* and n = number of subject
     m = len(samples)
@@ -108,15 +108,15 @@ def boundary_linear_interpolation(contrast_values, residual_values,
         
         residual_boundary[:,i] = residual_0 * m1 + residual_1 * m2
         
-    return(residual_boundary)
+    return(residual_boundary, residual_std)
         
 def wildt_bootstrap(contrast_values, residual_values,
                                   threshold_value, dim, repetition, alpha):
     """
-    take in 4d residual_boundary
+    take in 4d residual,values
     """
     #compute the residual values at s*
-    residual_boundary = boundary_linear_interpolation(contrast_values, 
+    residual_boundary, residual_std = boundary_linear_interpolation(contrast_values, 
                                                       residual_values, 
                                                       threshold_value, dim)
     
@@ -129,43 +129,42 @@ def wildt_bootstrap(contrast_values, residual_values,
     #G values repetition row 
     sup_G = np.zeros(m)
     
-    
     for i in range(m):
         rademacher_int = rademacher(sample_size)
         #clone the realisation for each point
         rademacher_int = np.tile(rademacher_int[:,None], points)
         #compute g for each point
-        G = 1/np.sqrt(sample_size) * np.sum(residual_boundary * rademacher_int, axis=0)
+        residual_effect = residual_boundary * rademacher_int
+        residual_effect_std = residual_effect.std(axis=0)
+        G = 1/np.sqrt(sample_size) * np.sum(residual_effect/residual_effect_std
+                                            , axis = 0)
         
         sup_G[i] = np.max(G)
     
     k = np.quantile(sup_G, 1-alpha)
     
-    return(k)
+    return(k, residual_std)
 
-def lower_high_confidence_region(k,)
-
+def compute_confidence_region(design_matrix, contrast_values, residual_values,
+                             threshold_value, dim, repetition, alpha):
     
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-     
+    """
+    vw values depends on the design matrix and contrast matrix, i.e. 1 sample test vs 2 sample test
+    here I look at 1 sample test for now, assuming that the beta value of interest is the second one
+    i.e. the first feature correspond to intercept
+    """
+    w = np.zeros(np.shape(design_matrix)[1]) #size = feature number
+    w[1] = 1
+    design_transpose = np.transpose(design_matrix)
+    vw = np.sqrt(w @ inv(design_transpose @ design_matrix) @ w)
     
+    k, residual_std = wildt_bootstrap(contrast_values, residual_values,
+                                      threshold_value, dim, repetition, alpha)
     
+    upper_region = np.argwhere(contrast_values - k * residual_std * vw >= threshold_value)
+    lower_region = np.argwhere(contrast_values + k * residual_std * vw >= threshold_value)
     
-    
-    
-    
-    return()
-        
+    return(upper_region, lower_region)
         
         
         
