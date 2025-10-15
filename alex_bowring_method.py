@@ -110,8 +110,8 @@ def boundary_linear_interpolation(contrast_values, residual_values,
         
     return(residual_boundary)
         
-def wildt_bootstrap(contrast_values, residual_values, 
-                                  threshold_value, dim, repetition):
+def wildt_bootstrap(contrast_values, residual_values,
+                                  threshold_value, dim, repetition, alpha):
     """
     take in 4d residual_boundary
     """
@@ -124,10 +124,37 @@ def wildt_bootstrap(contrast_values, residual_values,
     m = repetition
     
     #number of subject
-    n = np.shape(residual_boundary)[0]
-    G = np.array([np.shape(residual_boundary)])
+    sample_size, points = np.shape(residual_boundary)
+    
+    #G values repetition row 
+    sup_G = np.zeros(m)
+    
+    
     for i in range(m):
-        rademacher(n)
+        rademacher_int = rademacher(sample_size)
+        #clone the realisation for each point
+        rademacher_int = np.tile(rademacher_int[:,None], points)
+        #compute g for each point
+        G = 1/np.sqrt(sample_size) * np.sum(residual_boundary * rademacher_int, axis=0)
+        
+        sup_G[i] = np.max(G)
+    
+    k = np.quantile(sup_G, 1-alpha)
+    
+    return(k)
+
+def lower_high_confidence_region(k,)
+
+    
+        
+        
+        
+        
+        
+        
+        
+        
+        
         
         
      
