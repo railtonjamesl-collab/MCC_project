@@ -48,8 +48,8 @@ coord=np.argwhere(right)
 s0.append(coord + [0,1])
 s1.append(coord)
 
-s0 = np.concatenate(s0)
-s1 = np.concatenate(s1)
+s00 = np.concatenate(s0)
+s11 = np.concatenate(s1)
 
 plt.figure()
 plt.imshow(bdry)
