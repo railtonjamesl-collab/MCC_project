@@ -152,7 +152,7 @@ m1 = (b_s1 - c)/diff
 m2 = (c - b_s0)/diff
 
 
-
+#computing regression error term
 epsilons  = (instances - coefficient)
 eps_std = epsilons.std(axis=0, ddof=1)
 epsilons = (epsilons)/eps_std
