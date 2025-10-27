@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sat Oct 18 12:44:38 2025
+Created on Fri Oct 24 15:42:22 2025
 
 @author: railt
 """
@@ -66,7 +66,7 @@ def compute_boundary(mask):
 
 def generate_circle_100grid(radius, magnitude):
     """
-    
+    generate 100x100 circle 
     """
     
     center = np.array([50,50])
@@ -80,24 +80,31 @@ def generate_circle_100grid(radius, magnitude):
     return(circle, signif_point)
 
 def generate_cross():
+    """
+    generate a + symbol
+    """
     boi = np.zeros((100,100))
     boi[40:61,50] = 6
     boi[50,40:61] = 6
     return(boi)
 
 def generate_gradient(minsig,maxsig):
-    
+    """
+    generate a gradient signal     
+    """
+
     gradient = np.linspace(minsig,maxsig,100)
     gradient = np.tile(gradient, (100,1))
     return(gradient)
 
+#genearte a gradient
 x= generate_gradient(0,3)
 x = ndimage.gaussian_filter(x, 3/(2*np.sqrt(2*np.log(2))))
 #generating a circular signal and smoothing it
 circle = generate_circle_100grid(30, 3)[0]
 circle = ndimage.gaussian_filter(circle, 3/(2*np.sqrt(2*np.log(2))))
-circle = x
-c = 2
+#circle = x
+c =2
 #finding and interpolate true boundary
 true_mask = circle > c
 true_bdry, true_s1, true_s0 = compute_boundary(true_mask)
@@ -116,11 +123,11 @@ true_m2 = (c - true_b_s0)/true_diff
 
 #generating instances  of smoothed circle + smoothed noise
 instances = []
-eppy = []
-for i in range(1000):
+#eppy = []
+for i in range(3000):
     epsilon = ndimage.gaussian_filter(np.random.randn(100,100), 3/(2*np.sqrt(2*np.log(2))))
-    epsilon /= epsilon.std()
-    eppy.append(epsilon)
+    epsilon /= epsilon.std() #renormalise epsilon
+    #eppy.append(epsilon)
     instances.append(circle + epsilon) #3fwhm
     
     
@@ -156,6 +163,7 @@ epsilon_star = m1 * epsilons[:,s1[:,0], s1[:,1]] + m2 * epsilons[:,s0[:,0], s0[:
 number_subject, number_point = np.shape(epsilon_star)
 repeat = 1000
 
+#computing G the original way
 G = []
 for i in range(repeat):
     rad = rademacher(number_subject)
@@ -165,10 +173,25 @@ for i in range(repeat):
     G_values = np.sum(boot_residual, axis=0)/(std * np.sqrt(number_subject))
     sup = np.max(np.abs(G_values))
     G.append(sup)
-    
-k = np.quantile(G, 0.95)
+"""
+#computing G the way alex code it (less efficient)
+G2 = []
 
+for i in range(repeat):
+    rad = rademacher(number_subject)[:, None, None]
+    boot_residual = rad * epsilons
+    boot_std = boot_residual.std(axis=0, ddof=1)
+    t_field = boot_residual.sum(axis=0) / (boot_std * np.sqrt(number_subject))
+    t_star = m1 * t_field[s1[:,0], s1[:,1]] + m2 * t_field[s0[:,0], s0[:,1]]
+    G2.append(np.max(np.abs(t_star)))
+"""
+k = np.quantile(G, 0.95)
+#k2 = np.quantile(G2, 0.95)
+
+#weight
 vw = 1/np.sqrt(number_subject)
+
+#compute upper_lower region
 upper_coeff = coefficient - k * eps_std *vw
 lower_coeff = coefficient + k * eps_std *vw
 
@@ -179,20 +202,23 @@ upper_region = np.argwhere(upper_mask)
 lower_region = np.argwhere(lower_mask) 
 
 
-#interpolating boundary
 
+#value of upper and lower region at boundaries
 upper_s0 = upper_coeff[true_s0[:,0],true_s0[:,1]]
 upper_s1 = upper_coeff[true_s1[:,0],true_s1[:,1]]
 lower_s0 = lower_coeff[true_s0[:,0],true_s0[:,1]]
 lower_s1 = lower_coeff[true_s1[:,0],true_s1[:,1]]
 
-upper_boundary = true_m1 * (upper_s1) + true_m2 * (upper_s0) # if s* in upper the violocate
-lower_boundary = true_m1 * (lower_s1) + true_m2 * (lower_s0) #if s* not in lower then violated
+upper_boundary = true_m1 * (upper_s1) + true_m2 * (upper_s0) 
+lower_boundary = true_m1 * (lower_s1) + true_m2 * (lower_s0) 
 
-#True = failure
-upper_test = upper_boundary >= c
-lower_test = lower_boundary < c
+#test if the condition failed
+upper_test = upper_boundary >= c # if s* in upper then violate
+lower_test = lower_boundary < c #if s* not in lower then violated
 
+test = not (np.any(upper_test) or np.any(lower_test))
+    
+#contourplot
 fig, ax = plt.subplots()
 
 ax.contourf(upper_mask, levels= [0.5,1], colors = 'red', alpha=0.25)
@@ -202,9 +228,7 @@ ax.contourf(lower_mask, levels = [0.5,1], colors='blue', alpha=0.25)
 ax.contour(lower_mask, levels = [0.5,1], colors = 'blue')
 
 ax.scatter(true_s0[:,1],true_s0[:,0], s=10)
-
 plt.show()
+print(test)
 
-print(lower_boundary)
 
-print(upper_boundary)
