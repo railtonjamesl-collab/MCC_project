@@ -191,7 +191,7 @@ for i in range(t):
         t_field = boot_residual.sum(axis=0) / (boot_std * np.sqrt(number_subject))
         t_star = m1 * t_field[s1[:,0], s1[:,1]] + m2 * t_field[s0[:,0], s0[:,1]]
         G2.append(np.max(np.abs(t_star)))
-"""
+        """
     k = np.quantile(G, 0.95)
     #k2 = np.quantile(G2, 0.95)
     
