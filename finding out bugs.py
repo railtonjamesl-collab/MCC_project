@@ -10,6 +10,7 @@ from scipy import ndimage
 import matplotlib.pyplot as plt
 from numpy.linalg import inv
 
+alpha = 0.05
 def rademacher(n):
     """
     generate n sample of 1 or -1 with probability 1/2 for each outcome
@@ -99,7 +100,7 @@ def generate_gradient(minsig,maxsig):
 
 
 success = 0
-t = 1
+t = 100
 
 for i in range(t):
     #genearte a gradient
@@ -108,7 +109,7 @@ for i in range(t):
     #generating a circular signal and smoothing it
     circle = generate_circle_100grid(30, 3)[0]
     circle = ndimage.gaussian_filter(circle, 3/(2*np.sqrt(2*np.log(2))))
-    #circle = x
+    circle = x
     c =2
     #finding and interpolate true boundary
     true_mask = circle > c
@@ -117,96 +118,6 @@ for i in range(t):
     true_b_s0 = circle[true_s0[:,0], true_s0[:,1]]
     true_b_s1 = circle[true_s1[:,0], true_s1[:,1]]
     
-    
-<<<<<<< HEAD
-=======
-#using the fact that Linear regression consist only of intercept. 
-#The Intercept's coefficient is just the mean value we have that can compute beta easily
-coefficient = np.mean(instances, axis = 0)
-
-
-
-#mask for the significant regression coefficient values
-mask = coefficient > c
-bdry, s1, s0 = compute_boundary(mask)
-
-#register coefficients values at the inside boundary s0 and its neighbour outside boundary s1
-b_s0 = coefficient[s0[:,0], s0[:,1]]
-b_s1 = coefficient[s1[:,0], s1[:,1]]
-
-diff = np.abs(b_s1 - b_s0)
-
-#weight based on distances the regression coeffcient has from threshold (assume linear distance based on c)
-m1 = (b_s1 - c)/diff
-m2 = (c - b_s0)/diff
-
-
-#computing regression error term
-epsilons  = (instances - coefficient)
-eps_std = epsilons.std(axis=0, ddof=1)
-epsilons = (epsilons)/eps_std
-
-epsilon_star = m1 * epsilons[:,s1[:,0], s1[:,1]] + m2 * epsilons[:,s0[:,0], s0[:,1]]
-     
-#computing G*
-number_subject, number_point = np.shape(epsilon_star)
-repeat = 1000
-
-#computing G the original way
-G = []
-for i in range(repeat):
-    rad = rademacher(number_subject)
-    rad = np.tile(rad, (number_point,1)).T
-    boot_residual = rad * epsilon_star
-    std = boot_residual.std(axis=0)
-    G_values = np.sum(boot_residual, axis=0)/(std * np.sqrt(number_subject))
-    sup = np.max(np.abs(G_values))
-    G.append(sup)
-"""
-#computing G the way alex code it (less efficient)
-G2 = []
-
-for i in range(repeat):
-    rad = rademacher(number_subject)[:, None, None]
-    boot_residual = rad * epsilons
-    boot_std = boot_residual.std(axis=0, ddof=1)
-    t_field = boot_residual.sum(axis=0) / (boot_std * np.sqrt(number_subject))
-    t_star = m1 * t_field[s1[:,0], s1[:,1]] + m2 * t_field[s0[:,0], s0[:,1]]
-    G2.append(np.max(np.abs(t_star)))
-"""
-k = np.quantile(G, 0.95)
-#k2 = np.quantile(G2, 0.95)
-
-#weight
-vw = 1/np.sqrt(number_subject)
-
-#compute upper_lower region
-upper_coeff = coefficient - k * eps_std *vw
-lower_coeff = coefficient + k * eps_std *vw
-
-upper_mask = upper_coeff >= c
-lower_mask = lower_coeff >= c
-
-upper_region = np.argwhere(upper_mask)
-lower_region = np.argwhere(lower_mask) 
-
-
-
-#value of upper and lower region at boundaries
-upper_s0 = upper_coeff[true_s0[:,0],true_s0[:,1]]
-upper_s1 = upper_coeff[true_s1[:,0],true_s1[:,1]]
-lower_s0 = lower_coeff[true_s0[:,0],true_s0[:,1]]
-lower_s1 = lower_coeff[true_s1[:,0],true_s1[:,1]]
-
-upper_boundary = true_m1 * (upper_s1) + true_m2 * (upper_s0) 
-lower_boundary = true_m1 * (lower_s1) + true_m2 * (lower_s0) 
-
-#test if the condition failed
-upper_test = upper_boundary >= c # if s* in upper then violate
-lower_test = lower_boundary < c #if s* not in lower then violated
-
-test = not (np.any(upper_test) or np.any(lower_test))
->>>>>>> c7cd74507cd633fb04149af63ce3e17d2f51007e
     
     true_diff = true_b_s1 - true_b_s0
     
@@ -218,7 +129,7 @@ test = not (np.any(upper_test) or np.any(lower_test))
     #generating instances  of smoothed circle + smoothed noise
     instances = []
     #eppy = []
-    for i in range(500):
+    for i in range(100):
         epsilon = ndimage.gaussian_filter(np.random.randn(100,100), 3/(2*np.sqrt(2*np.log(2))))
         epsilon /= epsilon.std() #renormalise epsilon
         #eppy.append(epsilon)
@@ -257,7 +168,7 @@ test = not (np.any(upper_test) or np.any(lower_test))
     #computing G*
     number_subject, number_point = np.shape(epsilon_star)
     repeat = 1000
-    
+    """
     #computing G the original way
     G = []
     for i in range(repeat):
@@ -268,9 +179,8 @@ test = not (np.any(upper_test) or np.any(lower_test))
         G_values = np.sum(boot_residual, axis=0)/(std * np.sqrt(number_subject))
         sup = np.max(np.abs(G_values))
         G.append(sup)
-        
+        """
     #computing G the way alex code it (less efficient)
-    """
     G2 = []
     
     for i in range(repeat):
@@ -278,11 +188,22 @@ test = not (np.any(upper_test) or np.any(lower_test))
         boot_residual = rad * epsilons
         boot_std = boot_residual.std(axis=0, ddof=1)
         t_field = boot_residual.sum(axis=0) / (boot_std * np.sqrt(number_subject))
-        t_star = m1 * t_field[s1[:,0], s1[:,1]] + m2 * t_field[s0[:,0], s0[:,1]]
+        t_star = m1 * t_field[s0[:,0], s0[:,1]] + m2 * t_field[s1[:,0], s1[:,1]]
         G2.append(np.max(np.abs(t_star)))
-        """
-    k = np.quantile(G, 0.95)
-    #k2 = np.quantile(G2, 0.95)
+    """
+    for i in range(repeat):
+        rad = rademacher(number_subject)[:,None,None]
+        boot_residual_s0 = rad * epsilons[:,s0[:,0],s0[:,1]]
+        boot_residual_s1 = rad * epsilons[:,s1[:,0],s1[:,1]]
+        boot_std_s0 = boot_residual_s0.std(axis = 0, ddof=1)
+        boot_std_s1 = boot_residual_s1.std(axis=0, ddof =1)
+        t_field_s0 = boot_residual_s0.sum(axis=0) / (boot_std_s0 * np.sqrt(number_subject))
+        t_field_s1 = boot_residual_s1.sum(axis=0) / (boot_std_s1 * np.sqrt(number_subject))
+        t_star = m1 * t_field_s0 + m2 * t_field_s1
+        G2.append(np.max(np.abs(t_star)))
+    """
+    #k = np.quantile(G, 0.95)
+    k = np.quantile(G2, 1-alpha)
     
     #weight
     vw = 1/np.sqrt(number_subject)
